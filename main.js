@@ -5,7 +5,7 @@ var React = require('react');
 var FrontPage = React.createClass({
   getInitialState: function() {
     return {
-      albums: []
+      photos: []
     }
   },
 
@@ -21,25 +21,14 @@ var FrontPage = React.createClass({
     } else {
       body = <button onClick={this.handleLogin}>Log in to Facebook</button>;
     }
-    var albums = this.state.albums.map(function(album) {
-      var photos = [];
-      if (album.photos) {
-        photos = album.photos.map(function(photo) {
-          return <img src={photo.picture}/>;
-        });
-      }
-      return (
-        <div>
-          <h3>{album.name}</h3>
-          {photos}
-        </div>
-      );
+    var photos = this.state.photos.map(function(photo) {
+      return <img src={photo.picture}/>;
     });
     return (
       <div>
         <h1>Livre</h1>
         {body}
-        {albums}
+        {photos}
       </div>
     );
   },
@@ -59,20 +48,14 @@ var FrontPage = React.createClass({
     });
   },
   handleSync: function (event) {
-    FB.api("/me/albums", function (response) {
-      var albums = response.data;
-      this.setState({albums:albums});
-      for (var i = 0; i < albums.length; i++) {
-        var currentAlbum = albums[i];
-        FB.api(
-          "/"+currentAlbum.id+"/photos",
-          function(album, response) {
-            console.log(response.data);
-            album.photos = response.data;
-            this.setState({albums:albums});
-          }.bind(this, currentAlbum)
-        );
+    FB.api("/me/photos/uploaded", function(response) {
+      if (response.error) {
+        alert(response.error.message);
+        return;
       }
+      var photos = response.data;
+      console.log("got response", response);
+      this.setState({photos:photos});
     }.bind(this));
   },
   handleLogout: function (event) {
@@ -80,39 +63,5 @@ var FrontPage = React.createClass({
     window.location = "/";
   }
 });
-
-
-// function foo() {
-//   console.log(this);
-// }
-
-// foo(); // window
-
-// var a = {
-//   bar: function() {
-//     console.log(this);
-//   }
-// }
-
-// a.bar(); // a
-
-// b = {bar:a.bar}
-// b.bar(); // b
-
-// var c = a.bar;
-// c(); // window
-
-// var d = a.bar.bind(a);
-// d(); // a
-
-// function bind(whatThisShouldBe, someFunction) {
-//   return function() {
-//     someFunction.call(whatThisShouldBe, arguments);
-//   }
-// }
-
-
-
-
 
 React.render(<FrontPage/>, document.body);
