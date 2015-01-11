@@ -32,11 +32,12 @@ body {
     margin: auto;
 }
 
-.FrontPage img.thumb {
-    cursor: pointer;
+.FrontPage img {
     border: 5px solid white;
     box-shadow: 0px 0px 2px rgba(0,0,0,0.5);
     margin: 5px;
+    max-height: 500px;
+    max-width: 900px;
 }
 
 .FrontPage div.buttons {
@@ -45,10 +46,12 @@ body {
     top: 5px;
 }
 
+.FrontPage div.holder p {
+    margin: 10px 0 50px;
+}
+
 .BigPhoto div.holder {
     display: inline-block;
-/*    border: 5px solid white;
-    box-shadow: 0px 0px 2px rgba(0,0,0,0.5);*/
     margin: 5px;
     overflow: hidden;
 }

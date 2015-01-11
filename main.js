@@ -1,7 +1,4 @@
 /** @jsx React.DOM */
-
-var React = require('react');
-
 var LocationLink = React.createClass({
   getDefaultProps: function() {
     return {
@@ -19,114 +16,6 @@ var LocationLink = React.createClass({
         &mdash; at <a target="_blank" href={"http://fb.com/"+location.id}>{location.name}</a>
       </span>
     );
-  }
-});
-
-var BigPhoto = React.createClass({
-  getDefaultProps: function() {
-    return {
-      photo: {}
-    };
-  },
-
-  getInitialState: function() {
-    return {
-      isLoading: true
-    }
-  },
-
-  handleImageLoaded: function() {
-    this.setState({isLoading: false});
-  },
-
-  componentWillReceiveProps: function() {
-    this.setState({
-      isLoading: true,
-      lastPhoto: this.props.photo ? this.props.photo : null
-    });
-  },
-
-  getResizedDimensions: function(dims) {
-    var width = dims.width;
-    var height = dims.height;
-    var multiplier = Math.min(900/width, 500/height);
-    width *= multiplier;
-    height *= multiplier;
-    return {width:width, height: height};
-  },
-
-  render: function() {
-    var photo = this.props.photo;
-    var loadingMessage = null;
-    var src = photo.images[0].source;
-    var dims = this.getResizedDimensions(photo.images[0])
-    var posRight = 0;
-    if (this.state.isLoading) {
-      loadingMessage = <p className="loading">Loading...</p>;
-      var img = new Image();
-      img.onload = this.handleImageLoaded;
-      img.src = src;
-      src = null;
-    }
-    return (
-      <div className="BigPhoto">
-        <div
-          className="holder"
-          style={{width:dims.width+"px", height:dims.height+"px"}}
-          onClick={this.props.onClick}>
-          <img
-            style={{right:posRight+"px"}}
-            className={this.state.isLoading ? "loading" : ""}
-            src={src}
-            onLoad={this.handleImageLoaded}/>
-          {loadingMessage}
-        </div>
-        <p className="caption">{photo.name} <LocationLink location={photo.place}/></p>
-      </div>
-    );
-  }
-});
-
-var PhotoViewer = React.createClass({
-  getDefaultProps: function() {
-    return {
-      photos: [],
-      initialPhotoIndex: 0
-    }
-  },
-
-  getInitialState: function() {
-    return {
-      currentPhotoIndex: null
-    }
-  },
-
-  componentDidMount: function() {
-    if (this.props.photos.length > 0) {
-      this.setState({currentPhotoIndex: this.props.initialPhotoIndex});
-    }
-  },
-
-  componentWillReceiveProps: function(nextProps) {
-    if (nextProps.initialPhotoIndex !== this.props.initialPhotoIndex) {
-      this.setState({currentPhotoIndex: nextProps.initialPhotoIndex});
-    }
-  },
-
-  handlePhotoClick: function() {
-    var nextIndex = this.state.currentPhotoIndex + 1;
-    if (nextIndex >= this.props.photos.length) {
-      nextIndex = 0;
-    }
-    this.setState({currentPhotoIndex:nextIndex});
-  },
-
-  render: function() {
-    if (this.state.currentPhotoIndex !== null) {
-      var photo = this.props.photos[this.state.currentPhotoIndex];
-      return <BigPhoto photo={photo} onClick={this.handlePhotoClick} />
-    }
-    return null;
   }
 });
 
@@ -165,24 +54,37 @@ var FrontPage = React.createClass({
       var cachedPhotos = this.state.user.get('cachedPhotos');
       if (cachedPhotos) {
         photoElements = cachedPhotos.map(function(photo, index) {
-          return <img className="thumb" onClick={this.handleImgClick.bind(this, index)} src={photo.picture}/>;
+          return (
+            <div className="holder">
+              <a href={photo.images[0].source} target="_blank">
+                <img onClick={this.handleImgClick.bind(this, index)} src={photo.images[0].source}/>
+              </a>
+              <p>{photo.name} <LocationLink location={photo.place}/></p>
+            </div>
+          );
         }.bind(this));
         if (currentPhotoIndex === null && cachedPhotos.length) {
           currentPhotoIndex = 0;
         }
       }
-      body = (
-        <div>
-          <div className="buttons">
-            <button onClick={this.handleSync}>Sync</button>
-            <button onClick={this.handleLogout}>Log out</button>
+      if (Parse.User.current()) {
+        body = (
+          <div>
+            <div className="buttons">
+              <button onClick={this.handleSync}>Sync</button>
+              <button onClick={this.handleLogout}>Log out</button>
+            </div>
           </div>
-          <PhotoViewer photos={cachedPhotos} initialPhotoIndex={currentPhotoIndex}/>
-          <hr/>
-        </div>
-      );
+        );
+      } else {
+        body = (
+          <div className="buttons">
+            <button onClick={this.handleLogin}>Log In</button>
+          </div>
+        );
+      }
     } else {
-      body = <button onClick={this.handleLogin}>Connect to Facebook</button>;
+      body = <p>Loading...</p>;
     }
     return (
       <div className="FrontPage">
