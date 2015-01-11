@@ -50,23 +50,7 @@ body {
     margin: 10px 0 50px;
 }
 
-.BigPhoto div.holder {
-    display: inline-block;
-    margin: 5px;
-    overflow: hidden;
-}
-
-.BigPhoto img {
-    max-height: 500px;
-    max-width: 900px;
-    opacity: 1;
-}
-
-.BigPhoto img.loading {
-    opacity: .5;
-}
-
-.BigPhoto p.caption {
-    max-width: 900px;
-    margin: auto;
+.FrontPage a {
+    color: #009;
+    text-decoration: none;
 }

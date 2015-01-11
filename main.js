@@ -28,7 +28,6 @@ var FrontPage = React.createClass({
   },
 
   loadUser: function(objectId) {
-    console.log("loading user");
     var query = new Parse.Query(Parse.User);
     query.get(objectId, {
       success: function(user){
@@ -59,7 +58,7 @@ var FrontPage = React.createClass({
               <a href={photo.images[0].source} target="_blank">
                 <img onClick={this.handleImgClick.bind(this, index)} src={photo.images[0].source}/>
               </a>
-              <p>{photo.name} <LocationLink location={photo.place}/></p>
+              <p><em>{photo.name}</em> <LocationLink location={photo.place}/> &mdash; on {moment(photo.created_time).format('ddd, MMM Do')}</p>
             </div>
           );
         }.bind(this));
