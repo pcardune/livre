@@ -103,7 +103,7 @@ var FrontPage = React.createClass({
   },
 
   handleLogin: function (event) {
-    Parse.FacebookUtils.logIn("user_photos", {
+    Parse.FacebookUtils.logIn("user_photos,user_posts", {
       success: function(user) {
         if (!user.existed()) {
           // alert("User signed up and logged in through Facebook!");
