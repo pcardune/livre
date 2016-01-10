@@ -4,8 +4,6 @@ import {render} from 'react-dom';
 import Parse from 'parse';
 import moment from 'moment';
 import {
-  Button,
-  Panel,
   Image,
   Navbar,
   Grid,
@@ -26,38 +24,20 @@ require('./css/style.less');
   fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 
-var LocationLink = React.createClass({
-  getDefaultProps() {
-    return {location:{}};
-  },
-  render: function() {
-    var location = this.props.location;
-    if (!location.id) {
-      return null;
-    }
-    return (
-      <span className="LocationLink">
-        at <a target="_blank" href={"http://fb.com/"+location.id}>{location.name}</a>
-      </span>
-    );
-  }
-});
-
 var FrontPage = React.createClass({
   getInitialState: function() {
     return {
-      user: Parse.User.current()
+      user: Parse.User.current(),
+      loading: false
     };
   },
 
   loadUser: function(objectId) {
+    this.setState({loading: true});
     var query = new Parse.Query(Parse.User);
     query.get(objectId, {
-      success: function(user){
-        this.setState({user:user});
-      }.bind(this),
-      error: function(error) {
-      }
+      success: user => this.setState({user, loading:false}),
+      error: () => {}
     });
   },
 
@@ -133,7 +113,7 @@ var FrontPage = React.createClass({
             </Nav>
           </Navbar.Collapse>
         </Navbar>
-        {this.state.user ? '' : <ProgressBar active now={100} />}
+        {this.state.loading ? <ProgressBar active now={100} /> : null}
         {photoElements}
         <div className="footer">Created by Paul and Meghan</div>
       </Grid>
@@ -157,7 +137,9 @@ var FrontPage = React.createClass({
   },
 
   handleSync: function () {
+    this.setState({loading: true});
     FB.api("/me/photos/uploaded?fields=name,images,place,created_time", function(response) {
+      this.setState({loading: false});
       if (response.error) {
         if (response.error.code == 190 && response.error.error_subcode == 463) {
           // access token has expired
@@ -170,9 +152,10 @@ var FrontPage = React.createClass({
       var photos = response.data;
       var user = Parse.User.current();
       user.set("cachedPhotos", photos);
+      this.setState({loading: true});
       user.save(null, {
         success: function (user) {
-          this.setState({user:user});
+          this.setState({user:user, loading:false});
         }.bind(this)
       });
     }.bind(this));
