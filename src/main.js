@@ -24,6 +24,62 @@ require('./css/style.less');
   fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
 
+var Souvenir = React.createClass({
+  render() {
+    return (
+      <Row className="Souvenir">
+        <Col md={8}>
+          {this.props.souvenir.subattachments.data.map((attachment, index) => {
+            if (attachment.type == 'photo') {
+              return <Image key={index} src={attachment.media.image.src} rounded responsive/>;
+            }
+          })}
+        </Col>
+        <Col md={4}>
+          <p>{this.props.souvenir.title}</p>
+        </Col>
+      </Row>
+    );
+  }
+});
+
+var StatusPost = React.createClass({
+  render() {
+    let post = this.props.post;
+    let attachments = null;
+    if (post.attachments) {
+      attachments = post.attachments.data.map((attachment, index) => {
+        if (attachment.type == 'souvenir') {
+          //return <Souvenir key={index} souvenir={attachment} />;
+        }
+        return null;
+      });
+    }
+    return (
+      <Col md={12}>
+        <div className="quoteBlock">
+          <p className="caption">{post.message}</p>
+          {attachments}
+          <div className="metadata">
+            {post.place ?
+             <div>
+               <Glyphicon glyph="map-marker"/>
+               <a target="_blank" href={"http://fb.com/"+post.place.id}>
+                  {post.place.name}
+               </a>
+             </div>
+             : null}
+            <div>
+              <Glyphicon glyph="time"/>
+              {moment(post.created_time).format('MMM Do, YYYY')}
+            </div>
+          </div>
+        </div>
+      </Col>
+    );
+  }
+});
+
 var FrontPage = React.createClass({
   getInitialState: function() {
     return {
@@ -52,40 +108,81 @@ var FrontPage = React.createClass({
     let buttons = [];
     if (this.state.user) {
       var cachedPhotos = this.state.user.get('cachedPhotos');
-      if (cachedPhotos) {
-        photoElements = cachedPhotos.map(function(photo, index) {
-          return (
-            <Row key={index} className="photo">
-              <Col xs={12} md={8} className="image">
-                <a href={photo.images[0].source} target="_blank">
-                  <Image rounded responsive src={photo.images[0].source}/>
-                </a>
-              </Col>
-              <Col xs={12} md={4} className="description">
-                <div className="quoteBlock">
-                  {photo.name?
-                   <p className="caption">
-                     {photo.name}
-                   </p> : null}
-                  <div className="metadata">
-                    {photo.place ?
-                     <div>
-                       <Glyphicon glyph="map-marker"/>
-                       <a target="_blank" href={"http://fb.com/"+photo.place.id}>
-                          {photo.place.name}
-                       </a>
-                     </div>
-                     : null}
-                    <div>
-                      <Glyphicon glyph="time"/>
-                      {moment(photo.created_time).format('MMM Do, YYYY')}
+      let photoById = new Map(
+        cachedPhotos.map(p => [p.id, p])
+      );
+      window.photoById = photoById;
+      let cachedPosts = this.state.user.get('cachedPosts');
+      cachedPosts.forEach(post => {
+        if (post.attachments) {
+          post.attachments.data.forEach(attachment => {
+            if (attachment.target) {
+              attachment.photo = photoById.get(attachment.target.id);
+            }
+            if (attachment.subattachments) {
+              attachment.subattachments.data.forEach(subattachment => {
+                if (subattachment.target) {
+                  let photo = photoById.get(subattachment.target.id);
+                  if (photo) {
+                    subattachment.photo = photo;
+                    subattachment.photo.place = post.place;
+                    subattachment.photo.name = post.message;
+                    post.type = 'used_up';
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+      let posts = [...cachedPhotos, ...cachedPosts];
+      posts.sort((a,b) => new Date(b.created_time) - new Date(a.created_time));
+      if (posts) {
+        photoElements = posts.map((post, index) => {
+          if (post.type) {
+            // it's from the list of posts!
+            if (post.type == 'status') {
+              return (
+                <Row key={index} className="post status">
+                  <StatusPost post={post} />
+                </Row>
+              );
+            }
+          } else {
+            // it's from the list of photos!
+            return (
+              <Row key={index} className="post photo">
+                <Col xs={12} md={8} className="image">
+                  <a href={post.images[0].source} target="_blank">
+                    <Image rounded responsive src={post.images[0].source}/>
+                  </a>
+                </Col>
+                <Col xs={12} md={4} className="description">
+                  <div className="quoteBlock">
+                    {post.name?
+                     <p className="caption">
+                       {post.name}
+                     </p> : null}
+                    <div className="metadata">
+                      {post.place ?
+                       <div>
+                         <Glyphicon glyph="map-marker"/>
+                         <a target="_blank" href={"http://fb.com/"+post.place.id}>
+                            {post.place.name}
+                         </a>
+                       </div>
+                       : null}
+                      <div>
+                        <Glyphicon glyph="time"/>
+                        {moment(post.created_time).format('MMM Do, YYYY')}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Col>
-            </Row>
-          );
-        }.bind(this));
+                </Col>
+              </Row>
+            );
+          }
+        });
       }
 
       if (Parse.User.current()) {
@@ -138,27 +235,38 @@ var FrontPage = React.createClass({
 
   handleSync: function () {
     this.setState({loading: true});
-    FB.api("/me/photos/uploaded?fields=name,images,place,created_time", function(response) {
-      this.setState({loading: false});
-      if (response.error) {
-        if (response.error.code == 190 && response.error.error_subcode == 463) {
-          // access token has expired
-          this.handleLogin();
+    var user = Parse.User.current();
+    FB.api(
+      "/me/photos/uploaded?fields=name,images,place,created_time",
+      response => {
+        this.setState({loading: false});
+        if (response.error) {
+          if (response.error.code == 190 && response.error.error_subcode == 463) {
+            // access token has expired
+            this.handleLogin();
+            return;
+          }
+          alert(response.error.message);
           return;
         }
-        alert(response.error.message);
-        return;
-      }
-      var photos = response.data;
-      var user = Parse.User.current();
-      user.set("cachedPhotos", photos);
-      this.setState({loading: true});
-      user.save(null, {
-        success: function (user) {
-          this.setState({user:user, loading:false});
-        }.bind(this)
+        user.set("cachedPhotos", response.data);
+        this.setState({loading: true});
+        FB.api(
+          "me/posts?fields=attachments,type,description,message,caption,created_time,place",
+          response => {
+            this.setState({loading: false});
+            if (response.error) {
+              alert(response.error.message);
+              return;
+            }
+            user.set("cachedPosts", response.data);
+            this.setState({loading: true});
+            user.save(null, {
+              success: user => this.setState({user:user, loading:false})
+            });
+          }
+        );
       });
-    }.bind(this));
   },
 
   handleLogout: function () {
