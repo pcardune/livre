@@ -112,7 +112,7 @@ var FrontPage = React.createClass({
         cachedPhotos.map(p => [p.id, p])
       );
       window.photoById = photoById;
-      let cachedPosts = this.state.user.get('cachedPosts');
+      let cachedPosts = this.state.user.get('cachedPosts') || [];
       cachedPosts.forEach(post => {
         if (post.attachments) {
           post.attachments.data.forEach(attachment => {
