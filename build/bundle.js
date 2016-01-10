@@ -197,7 +197,7 @@
 	          return [p.id, p];
 	        }));
 	        window.photoById = photoById;
-	        var cachedPosts = _this2.state.user.get('cachedPosts');
+	        var cachedPosts = _this2.state.user.get('cachedPosts') || [];
 	        cachedPosts.forEach(function (post) {
 	          if (post.attachments) {
 	            post.attachments.data.forEach(function (attachment) {
