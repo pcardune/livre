@@ -43,6 +43,41 @@ var Souvenir = React.createClass({
   }
 });
 
+var LinkPost = React.createClass({
+  render() {
+    let post = this.props.post;
+    let attachment = post.attachments.data[0];
+    console.log("post", post);
+    return (
+      <Col md={12}>
+        <div className="quoteBlock">
+          <p className="caption">{post.message}</p>
+          <div className="linkAttachment">
+            <a href={attachment.url}>
+              <img src={attachment.media.image.src} style={{maxWidth: '100px'}}/>
+             {attachment.title}
+            </a>
+          </div>
+          <div className="metadata">
+            {post.place ?
+             <div>
+               <Glyphicon glyph="map-marker"/>
+               <a target="_blank" href={"http://fb.com/"+post.place.id}>
+                  {post.place.name}
+               </a>
+             </div>
+             : null}
+            <div>
+              <Glyphicon glyph="time"/>
+              {moment(post.created_time).format('MMM Do, YYYY')}
+            </div>
+          </div>
+        </div>
+      </Col>
+    );
+  }
+});
+
 var StatusPost = React.createClass({
   render() {
     let post = this.props.post;
@@ -111,7 +146,6 @@ var FrontPage = React.createClass({
       let photoById = new Map(
         cachedPhotos.map(p => [p.id, p])
       );
-      window.photoById = photoById;
       let cachedPosts = this.state.user.get('cachedPosts') || [];
       cachedPosts.forEach(post => {
         if (post.attachments) {
@@ -126,7 +160,11 @@ var FrontPage = React.createClass({
                   if (photo) {
                     subattachment.photo = photo;
                     subattachment.photo.place = post.place;
-                    subattachment.photo.name = post.message;
+                    if (subattachment.description) {
+                      subattachment.photo.name = subattachment.description;
+                    } else {
+                      subattachment.photo.name = post.message;
+                    }
                     post.type = 'used_up';
                   }
                 }
@@ -145,6 +183,12 @@ var FrontPage = React.createClass({
               return (
                 <Row key={index} className="post status">
                   <StatusPost post={post} />
+                </Row>
+              );
+            } else if (post.type == 'link') {
+              return (
+                <Row key={index} className="post link">
+                  <LinkPost post={post} />
                 </Row>
               );
             }
