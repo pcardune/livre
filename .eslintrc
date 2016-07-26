@@ -1,39 +1,29 @@
 {
   "parser": "babel-eslint",
   "rules": {
-    "indent": [
-      2,
-      2
-    ],
-    "linebreak-style": [
-      2,
-      "unix"
-    ],
-    "semi": [
-      2,
-      "always"
-    ]
+    "comma-dangle": 0,
+    "indent": [2, 2, {"SwitchCase": 1}],
+    "linebreak-style": [2, "unix"],
+    "semi": [2, "always"],
+    "no-console": 0,
+    "react/prop-types": 0,
   },
   "env": {
     "es6": true,
     "browser": true,
     "node": true
   },
-  "extends": "eslint:recommended",
-  "ecmaFeatures": {
-    "arrowFunctions": true,
-    "blockBindings": true,
-    "classes": true,
-    "defaultParams": true,
-    "destructuring": true,
-    "forOf": true,
-    "generators": true,
-    "modules": true,
-    "spread": true,
-    "templateStrings": true,
-    "jsx": true
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 7,
+    "ecmaFeatures": {
+      "jsx": true,
+    },
   },
   "plugins": [
-    "react"
+    "react",
   ]
 }

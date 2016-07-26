@@ -1,8 +1,8 @@
 /* globals FB */
 import React from 'react';
 import {render} from 'react-dom';
-import Parse from 'parse';
 import moment from 'moment';
+import firebase from 'firebase';
 import {
   Image,
   Navbar,
@@ -23,6 +23,13 @@ require('./css/style.less');
   js.src = "//connect.facebook.net/en_US/sdk.js";
   fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));
+
+firebase.initializeApp({
+  apiKey: "AIzaSyDnI5EiHjDttpxWBCy-Pu_7bypBsBGqy5g",
+  authDomain: "livre-abeec.firebaseapp.com",
+  databaseURL: "https://livre-abeec.firebaseio.com",
+  storageBucket: "",
+});
 
 var Souvenir = React.createClass({
   render() {
@@ -118,35 +125,47 @@ var StatusPost = React.createClass({
 var FrontPage = React.createClass({
   getInitialState: function() {
     return {
-      user: Parse.User.current(),
-      loading: false
+      cachedPhotos: [],
+      cachedPosts: [],
+      loadingPhotos: false,
+      loadingPosts: false,
+      syncing: false,
     };
   },
 
-  loadUser: function(objectId) {
-    this.setState({loading: true});
-    var query = new Parse.Query(Parse.User);
-    query.get(objectId, {
-      success: user => this.setState({user, loading:false}),
-      error: () => {}
+  isLoading() {
+    return this.state.loadingPhotos || this.state.loadingPosts || this.state.syncing;
+  },
+
+  load: function() {
+    this.setState({loadingPhotos: true, loadingPosts: true});
+    firebase.database().ref('cachedPhotos').on('value', snapshot => {
+      this.setState({
+        cachedPhotos: snapshot.val() || [],
+        loadingPhotos: false,
+      });
+    });
+    firebase.database().ref('cachedPosts').on('value', snapshot => {
+      this.setState({
+        cachedPosts: snapshot.val() || [],
+        loadingPosts: false,
+      });
     });
   },
 
   componentDidMount: function() {
-    if (!this.state.user) {
-      this.loadUser('Ckf47czPVC');
-    }
+    this.load();
   },
 
   render: function () {
     var photoElements = null;
     let buttons = [];
-    if (this.state.user) {
-      var cachedPhotos = this.state.user.get('cachedPhotos');
+    if (!this.isLoading()) {
+      var cachedPhotos = this.state.cachedPhotos;
       let photoById = new Map(
         cachedPhotos.map(p => [p.id, p])
       );
-      let cachedPosts = this.state.user.get('cachedPosts') || [];
+      let cachedPosts = this.state.cachedPosts || [];
       cachedPosts.forEach(post => {
         if (post.attachments) {
           post.attachments.data.forEach(attachment => {
@@ -229,7 +248,7 @@ var FrontPage = React.createClass({
         });
       }
 
-      if (Parse.User.current()) {
+      if (firebase.auth().currentUser) {
         buttons = [
           <NavItem onClick={this.handleSync}>Sync</NavItem>,
           <NavItem onClick={this.handleLogout}>Log out</NavItem>
@@ -254,7 +273,7 @@ var FrontPage = React.createClass({
             </Nav>
           </Navbar.Collapse>
         </Navbar>
-        {this.state.loading ? <ProgressBar active now={100} /> : null}
+        {this.isLoading() ? <ProgressBar active now={100} /> : null}
         {photoElements}
         <div className="footer">Created by Paul and Meghan</div>
       </Grid>
@@ -262,28 +281,34 @@ var FrontPage = React.createClass({
   },
 
   handleLogin: function () {
-    Parse.FacebookUtils.logIn("user_photos,user_posts", {
-      success: function(user) {
-        if (!user.existed()) {
-          // alert("User signed up and logged in through Facebook!");
-        } else {
-          // alert("User logged in through Facebook!");
-        }
-        this.setState({user:user});
-      }.bind(this),
-      error: function() {
-        alert("User cancelled the Facebook login or did not fully authorize.");
-      }
+    var provider = new firebase.auth.FacebookAuthProvider();
+    provider.addScope('user_photos,user_posts');
+    firebase.auth().signInWithPopup(provider).then(result => {
+      console.log("fbAuthToken is", result.credential.accessToken);
+      this.setState({
+        fbAuthToken: result.credential.accessToken,
+        user: result.user
+      });
+    }).catch(function(error) {
+      // Handle Errors here.
+      var errorCode = error.code;
+      var errorMessage = error.message;
+      // The email of the user's account used.
+      var email = error.email;
+      // The firebase.auth.AuthCredential type that was used.
+      var credential = error.credential;
+      // ...
+      console.log(error);
     });
   },
 
   handleSync: function () {
-    this.setState({loading: true});
-    var user = Parse.User.current();
+    this.setState({syncing: true});
     FB.api(
       "/me/photos/uploaded?fields=name,images,place,created_time",
+      {access_token: this.state.fbAuthToken},
       response => {
-        this.setState({loading: false});
+        this.setState({syncing: false});
         if (response.error) {
           if (response.error.code == 190 && response.error.error_subcode == 463) {
             // access token has expired
@@ -293,45 +318,33 @@ var FrontPage = React.createClass({
           alert(response.error.message);
           return;
         }
-        user.set("cachedPhotos", response.data);
-        this.setState({loading: true});
+        firebase.database().ref('cachedPhotos').set(response.data);
+        this.setState({syncing: true});
         FB.api(
           "me/posts?fields=attachments,type,description,message,caption,created_time,place",
+          {access_token: this.state.fbAuthToken},
           response => {
-            this.setState({loading: false});
+            this.setState({syncing: false});
             if (response.error) {
               alert(response.error.message);
               return;
             }
-            user.set("cachedPosts", response.data);
-            this.setState({loading: true});
-            user.save(null, {
-              success: user => this.setState({user:user, loading:false})
-            });
+            firebase.database().ref('cachedPosts').set(response.data);
           }
         );
       });
   },
 
   handleLogout: function () {
-    Parse.User.logOut();
+    firebase.auth().signOut();
     this.setState(this.getInitialState());
     this.componentDidMount();
   }
 });
 
-// Initialize Parse
-Parse.initialize(
-  "8hfjPYQvw0Ic9QeR2DoGGJAbzEzmHNhNbB8QHUVc",
-  "UcHtbBOqB8bZLhnFs6edT5j8YzaK2ohSk5ISosBt"
-);
-
 window.fbAsyncInit = function() {
-  Parse.FacebookUtils.init({ // this line replaces FB.init({
+  FB.init({
     appId: '1526300564323388', // Facebook App ID
-    status: true,  // check Facebook Login status
-    cookie: true,  // enable cookies to allow Parse to access the session
-    xfbml: true,  // initialize Facebook social plugins on the page
     version: 'v2.5' // point to the latest Facebook Graph API version
   });
 
